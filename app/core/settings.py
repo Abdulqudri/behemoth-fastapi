@@ -21,9 +21,18 @@ class Settings(BaseSettings):
 
     # REDIS
     REDIS_BROKER_URL: str = os.environ.get("REDIS_BROKER_URL")
+    
+    SECRET_KEY: str =  os.environ.get("SECRET_KEY") # should come from .env
+    ALGORITHM: str = os.environ.get("ALGORITHM")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES")
 
 
 @lru_cache
 def get_settings():
     """This function returns the settings obj for the application."""
     return Settings()
+
+
+
+
+print(f"--- ATTEMPTING TO USE DATABASE URL: '{get_settings().POSTGRES_DATABASE_URL}' ---")

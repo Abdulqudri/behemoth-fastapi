@@ -29,6 +29,16 @@ from app.core.handlers import (
 from app.core.settings import get_settings
 from app.core.tags import RouteTags
 from app.sample_module.apis import router as sample_router
+from app.auth.apis import router as auth_router
+from app.user.apis import router as user_router
+from app.event.apis import router as event_router
+from app.task.apis import router as task_router
+
+# Import models so SQLAlchemy registers them
+from app.user import models as user_models
+from app.event import models as event_models
+from app.task import models as task_models
+
 
 # Globals
 tags = RouteTags()
@@ -50,11 +60,11 @@ async def lifespan(_: FastAPI):
     limiter = to_thread.current_default_thread_limiter()
     limiter.total_tokens = 1000
 
-    print("Setting up rate limiter")
-    redis_connection = redis.from_url(
-        settings.REDIS_BROKER_URL, encoding="utf-8", decode_responses=True
-    )
-    await FastAPILimiter.init(redis_connection)
+    # print("Setting up rate limiter")
+    # redis_connection = redis.from_url(
+    #     settings.REDIS_BROKER_URL, encoding="utf-8", decode_responses=True
+    # )
+    # await FastAPILimiter.init(redis_connection)
 
     # Shutdown Code
     yield
@@ -65,7 +75,9 @@ app = FastAPI(
     title="Behemoth FastAPI",
     lifespan=lifespan,
     default_response_class=ORJSONResponse,
-    docs_url="/" if settings.DEBUG else None,
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
     contact={
         "name": "GrandGale Technologies",
         "url": "https://github.com/GrandGaleTechnologies",
@@ -89,6 +101,12 @@ app.add_middleware(
     minimum_size=5000,  # Minimum size of the response before it is compressed in bytes
 )
 
+if settings.DEBUG:
+    secure_headers = Secure(
+        csp=None  # disable Content-Security-Policy so Swagger JS/CSS load
+    )
+else:
+    secure_headers = Secure.with_default_headers()
 
 @app.middleware("http")
 async def add_security_headers(request, call_next):
@@ -125,8 +143,12 @@ async def health(_: Session = Depends(get_session)):
 
 
 # Routers
-app.include_router(
-    sample_router,
-    tags=[tags.SAMPLE],
-    dependencies=[Depends(RateLimiter(times=REQ_RATE, seconds=REQ_RATE_TIME))],
-)
+# app.include_router(
+#     sample_router,
+#     tags=[tags.SAMPLE],
+#     dependencies=[Depends(RateLimiter(times=REQ_RATE, seconds=REQ_RATE_TIME))],
+# )
+app.include_router(auth_router, tags=[tags.auth])
+app.include_router(user_router, prefix="/events", tags=[tags.user])
+app.include_router(event_router, tags=[tags.event], prefix="/events")
+app.include_router(task_router, tags=[tags.task], prefix="/tasks")

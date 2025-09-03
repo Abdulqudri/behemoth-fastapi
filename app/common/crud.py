@@ -55,7 +55,7 @@ class MongoCRUDBase(Generic[P]):
     CRUD base class for MongoDB using Pymongo and Pydantic
     """
 
-    def __init__(self, model: Type(P), collection: Collection):
+    def __init__(self, model: Type[P], collection: Collection):
         self.model = model
         self.collection = collection
 

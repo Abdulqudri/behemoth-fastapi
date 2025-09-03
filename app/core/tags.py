@@ -1,20 +1,22 @@
 from functools import lru_cache
-
 from pydantic import BaseModel
 
 
 class RouteTags(BaseModel):
     """
-    Base model for app route tags
+    Route tags for API grouping in Swagger docs
     """
 
-    # Module Tags
-    SAMPLE: str = "Sample APIs"
+    # Core Modules
+    auth: str = "Auths"
+    user: str = "Users"
+    event: str = "Events"
+    task: str = "Tasks"
 
 
 @lru_cache
-def get_tags():
+def get_tags() -> RouteTags:
     """
-    Get app rotue tags
+    Get app route tags (cached)
     """
     return RouteTags()
