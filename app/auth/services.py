@@ -22,6 +22,35 @@ from sqlalchemy import select
 
 
 class AuthService:
+    
+    @staticmethod
+    async def bootstrap_admin(email: str, password: str, session: AsyncSession) -> ResponseSchema:
+        """
+        Create the first admin if none exists.
+        """
+        # Check if a admin already exists
+        result = await session.execute(
+            select(User).where(User.role == Role.ADMIN)
+        )
+        admin = result.scalars().first()
+        if admin:
+            raise Forbidden(msg="Admin already exists")
+
+        # Create admin
+        user_crud = UserCRUD(User, session)
+        user = await user_crud.create(
+            data={
+                "email": email,
+                "hashed_password": await hash_password(raw=password),
+                "role": Role.ADMIN,
+            }
+        )
+
+        return ResponseSchema(
+            msg="Admin created successfully",
+            data={"id": user.id, "email": user.email, "role": user.role},
+        )
+
     @staticmethod
     async def signup(email: str, password: str, session: AsyncSession) -> ResponseSchema:
         user_crud = UserCRUD(User, session)
@@ -42,7 +71,8 @@ class AuthService:
             msg="User created successfully",
             data={"id": user.id, "email": user.email, "role": user.role},
         )
-
+        
+    
     @staticmethod
     async def login(email: str, password: str, session: AsyncSession) -> ResponseSchema:
         user_crud = UserCRUD(User, session)

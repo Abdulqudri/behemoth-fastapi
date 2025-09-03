@@ -149,6 +149,6 @@ async def health(_: Session = Depends(get_session)):
 #     dependencies=[Depends(RateLimiter(times=REQ_RATE, seconds=REQ_RATE_TIME))],
 # )
 app.include_router(auth_router, tags=[tags.auth])
-app.include_router(user_router, prefix="/events", tags=[tags.user])
+app.include_router(user_router, tags=[tags.user])
 app.include_router(event_router, tags=[tags.event], prefix="/events")
 app.include_router(task_router, tags=[tags.task], prefix="/tasks")

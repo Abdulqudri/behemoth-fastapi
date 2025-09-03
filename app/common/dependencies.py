@@ -1,12 +1,12 @@
 # app/common/dependencies.py
 from typing import Literal
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.auth import TokenGenerator
-from app.common.exceptions import Unauthorized
+from app.common.exceptions import Unauthorized, Forbidden, BadRequest
 from app.common.types import PaginationParamsType
 from app.core.database import AsyncSessionLocal
 from app.core.settings import get_settings
@@ -53,11 +53,11 @@ async def get_current_user(
     """
     user_id = await token_generator.verify(token=token, sub_head="user")
     if not user_id:
-        raise Unauthorized("Invalid authentication token")
+        raise Unauthorized(msg="Invalid authentication token")
 
     user = await session.get(User, int(user_id))
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise Unauthorized(msg="User not found")
     return user
 
 
@@ -68,9 +68,8 @@ async def get_current_active_user(
     Ensure the user is active.
     """
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user",
+        raise BadRequest(
+            msg="Inactive user"
         )
     return user
 
@@ -82,8 +81,7 @@ async def get_admin_user(
     Ensure the user has admin role.
     """
     if user.role != Role.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
+        raise Forbidden(
+            msg="Not enough permissions"
         )
     return user
