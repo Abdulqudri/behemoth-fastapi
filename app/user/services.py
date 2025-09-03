@@ -2,7 +2,7 @@ from app.common.exceptions import NotFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from app.user.models import User
+from app.user.models import User, Role
 from app.user.schemas.base import UserOut 
 from app.user.schemas.edit import UpdateUserRequest
 from app.common.paginators import paginate, get_pagination_metadata
@@ -14,19 +14,23 @@ class AdminUserService:
 
     @staticmethod
     async def get_all_users(session: AsyncSession, page: int, size: int) -> PaginatedResponseSchema:
-        # Count total users
-        total_query = await session.execute(select(func.count()).select_from(User))
+        # Count total non-admin users
+        total_query = await session.execute(
+            select(func.count()).select_from(User).where(User.role != Role.ADMIN)
+        )
         total = total_query.scalar() or 0
 
-        # Paginate query
+        # Paginate query excluding admins
         user_crud = UserCRUD(User, session)
         qs = await user_crud.get_all(return_qs=True)
-        qs = qs.order_by(User.id)
+        qs = qs.where(User.role != Role.ADMIN).order_by(User.id)
+
         paginated_qs = await paginate(qs=qs, page=page, size=size)
 
         result = await session.execute(paginated_qs)
         users = result.scalars().all()
 
+        # Pagination metadata
         meta = await get_pagination_metadata(
             tno_items=total,
             count=len(users),
@@ -35,10 +39,10 @@ class AdminUserService:
         )
 
         return PaginatedResponseSchema(
+            msg="Users fetched successfully",
             data=[UserOut.model_validate(u) for u in users],
             meta=meta,
         )
-
     @staticmethod
     async def get_user(user_id: int, session: AsyncSession) -> ResponseSchema:
         user_crud = UserCRUD(User, session)
@@ -60,13 +64,13 @@ class AdminUserService:
         if not user:
             raise NotFound(msg="User not found")
 
-        await session.delete(user)
-        await session.commit()
+        await user_crud.delete(user)
 
-        return ResponseSchema(msg="User deleted successfully", data=None)
-    
-    
-    # use to deactivate users 
+        return ResponseSchema(
+            msg="User deleted successfully",
+            data={"id": user.id, "email": user.email},
+        )
+
     @staticmethod
     async def update_user(user_id: int, data: UpdateUserRequest, session: AsyncSession) -> ResponseSchema:
         user_crud = UserCRUD(User, session)
@@ -74,14 +78,12 @@ class AdminUserService:
         if not user:
             raise NotFound(msg="User not found")
 
-        update_data = data.dict(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(user, key, value)
-
-        await session.commit()
-        await session.refresh(user)
+        updated_user = await user_crud.update(
+            user,
+            data.dict(exclude_unset=True)
+        )
 
         return ResponseSchema(
             msg="User updated successfully",
-            data=UserOut.model_validate(user),
+            data=UserOut.model_validate(updated_user),
         )

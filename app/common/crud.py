@@ -48,6 +48,25 @@ class CRUDBase(Generic[T]):
             return qs
         result = await self.db.execute(qs)
         return result.scalars().all()
+    
+    async def update(self, db_obj: T, data: dict) -> T:
+        """
+        Update an object
+        """
+        for key, value in data.items():
+            setattr(db_obj, key, value)
+
+        self.db.add(db_obj)
+        await self.db.commit()
+        await self.db.refresh(db_obj)
+        return db_obj
+
+    async def delete(self, db_obj: T) -> None:
+        """
+        Delete an object
+        """
+        await self.db.delete(db_obj)
+        await self.db.commit()
 
 
 class MongoCRUDBase(Generic[P]):
