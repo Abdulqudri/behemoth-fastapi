@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.common.exceptions import BadRequest, Unauthorized
+from app.common.exceptions import BadRequest, Unauthorized, Forbidden
 
 from app.user.models import User, Role
 from app.common.security import hash_password, verify_password

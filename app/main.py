@@ -45,8 +45,8 @@ tags = RouteTags()
 settings = get_settings()
 secure_headers = Secure.with_default_headers()
 # constants
-REQ_RATE = 3  # Number of requests
-REQ_RATE_TIME = 1  # Number of seconds
+REQ_RATE = 100  # Number of requests
+REQ_RATE_TIME = 3600  # Number of seconds
 
 
 # Lifespan (startup, shutdown)
@@ -60,11 +60,11 @@ async def lifespan(_: FastAPI):
     limiter = to_thread.current_default_thread_limiter()
     limiter.total_tokens = 1000
 
-    # print("Setting up rate limiter")
-    # redis_connection = redis.from_url(
-    #     settings.REDIS_BROKER_URL, encoding="utf-8", decode_responses=True
-    # )
-    # await FastAPILimiter.init(redis_connection)
+    print("Setting up rate limiter")
+    redis_connection = redis.from_url(
+        settings.REDIS_BROKER_URL, encoding="utf-8", decode_responses=True
+    )
+    await FastAPILimiter.init(redis_connection)
 
     # Shutdown Code
     yield
@@ -108,6 +108,7 @@ if settings.DEBUG:
 else:
     secure_headers = Secure.with_default_headers()
 
+
 @app.middleware("http")
 async def add_security_headers(request, call_next):
     """
@@ -146,9 +147,25 @@ async def health(_: Session = Depends(get_session)):
 # app.include_router(
 #     sample_router,
 #     tags=[tags.SAMPLE],
-#     dependencies=[Depends(RateLimiter(times=REQ_RATE, seconds=REQ_RATE_TIME))],
+
 # )
-app.include_router(auth_router, tags=[tags.auth])
-app.include_router(user_router, tags=[tags.user])
-app.include_router(event_router, tags=[tags.event])
-app.include_router(task_router, tags=[tags.task])
+app.include_router(
+    auth_router,
+    tags=[tags.auth],
+    dependencies=[Depends(RateLimiter(times=REQ_RATE, seconds=REQ_RATE_TIME))],
+)
+app.include_router(
+    user_router,
+    tags=[tags.user],
+    dependencies=[Depends(RateLimiter(times=REQ_RATE, seconds=REQ_RATE_TIME))],
+)
+app.include_router(
+    event_router,
+    tags=[tags.event],
+    dependencies=[Depends(RateLimiter(times=REQ_RATE, seconds=REQ_RATE_TIME))],
+)
+app.include_router(
+    task_router,
+    tags=[tags.task],
+    dependencies=[Depends(RateLimiter(times=REQ_RATE, seconds=REQ_RATE_TIME))],
+)

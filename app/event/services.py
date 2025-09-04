@@ -6,8 +6,9 @@ from typing import Optional
 
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.common.exceptions import Forbidden, NotFound, BadRequest
+from app.common.exceptions import Forbidden, NotFound
 from app.common.paginators import paginate, get_pagination_metadata
 from app.common.schemas import ResponseSchema
 from app.user.models import User, Role
@@ -15,13 +16,10 @@ from app.common.types import PaginationParamsType
 from app.user.crud import UserCRUD
 from app.event.crud import EventCRUD
 from app.event.models import Event, EventStatus
- 
+
 from app.event.schemas.create import EventCreateRequest
-from app.event.schemas.edit import    EventUpdateRequest, EventStatusUpdateRequest
+from app.event.schemas.edit import EventUpdateRequest, EventStatusUpdateRequest
 from app.event.schemas.response import EventOut, EventListResponse, EventResponse
-
-
-
 
 
 class EventService:
@@ -92,7 +90,17 @@ class EventService:
         session: AsyncSession,
         current_user: User,
     ) -> EventResponse:
-        event = await session.get(Event, event_id)
+        stmt = (
+            select(Event)
+            .options(
+                selectinload(Event.owner),
+                selectinload(Event.tasks),
+            )
+            .where(Event.id == event_id)
+        )
+        result = await session.execute(stmt)
+        event = result.scalar_one_or_none()
+
         if not event:
             raise NotFound(msg="Event not found")
 
@@ -125,8 +133,15 @@ class EventService:
         total = (await session.execute(total_q)).scalar() or 0
 
         # base query
-        qs = select(Event).where(*filters)
-        qs = qs.order_by(Event.id.desc() if params.order_by == "desc" else Event.id.asc())
+        qs = (
+            select(Event)
+            .options(
+                selectinload(Event.owner),
+                selectinload(Event.tasks),
+            )
+            .where(*filters)
+            .order_by(Event.id.desc() if params.order_by == "desc" else Event.id.asc())
+        )
 
         # paginate
         paginated_qs = await paginate(qs=qs, page=params.page, size=params.size)
@@ -161,8 +176,15 @@ class EventService:
         total_q = select(func.count()).select_from(Event).where(*filters)
         total = (await session.execute(total_q)).scalar() or 0
 
-        qs = select(Event).where(*filters)
-        qs = qs.order_by(Event.id.desc() if params.order_by == "desc" else Event.id.asc())
+        qs = (
+            select(Event)
+            .options(
+                selectinload(Event.owner),
+                selectinload(Event.tasks),
+            )
+            .where(*filters)
+            .order_by(Event.id.desc() if params.order_by == "desc" else Event.id.asc())
+        )
 
         paginated_qs = await paginate(qs=qs, page=params.page, size=params.size)
         rows = (await session.execute(paginated_qs)).scalars().all()
@@ -188,14 +210,23 @@ class EventService:
         session: AsyncSession,
         current_user: User,
     ) -> EventResponse:
-        event = await session.get(Event, event_id)
+        stmt = (
+            select(Event)
+            .options(
+                selectinload(Event.owner),
+                selectinload(Event.tasks),
+            )
+            .where(Event.id == event_id)
+        )
+        result = await session.execute(stmt)
+        event = result.scalar_one_or_none()
+
         if not event:
             raise NotFound(msg="Event not found")
 
         if current_user.role != Role.ADMIN and event.owner_id != current_user.id:
             raise Forbidden(msg="You cannot modify this event")
 
-        # Users cannot update status via this endpoint
         update_data = payload.model_dump(exclude_unset=True)
         for k, v in update_data.items():
             setattr(event, k, v)
@@ -219,7 +250,17 @@ class EventService:
         if current_user.role != Role.ADMIN:
             raise Forbidden(msg="Only admin can update event status")
 
-        event = await session.get(Event, event_id)
+        stmt = (
+            select(Event)
+            .options(
+                selectinload(Event.owner),
+                selectinload(Event.tasks),
+            )
+            .where(Event.id == event_id)
+        )
+        result = await session.execute(stmt)
+        event = result.scalar_one_or_none()
+
         if not event:
             raise NotFound(msg="Event not found")
 

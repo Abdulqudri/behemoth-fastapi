@@ -47,18 +47,6 @@ async def admin_create_for_user(
     )
 
 
-# --------- Get one ---------
-@router.get("/{event_id}", response_model=EventResponse)
-async def get_event(
-    event_id: int,
-    session: DatabaseSession,
-    current_user: User = Depends(get_current_active_user),
-):
-    return await EventService.get_event(
-        event_id=event_id, session=session, current_user=current_user
-    )
-
-
 # --------- List my events ---------
 @router.get("", response_model=EventListResponse)
 async def list_my_events(
@@ -95,6 +83,18 @@ async def list_all_events_admin(
         status=status,
         date_from=date_from,
         date_to=date_to,
+    )
+
+
+# --------- Get one ---------
+@router.get("/{event_id}", response_model=EventResponse)
+async def get_event(
+    event_id: int,
+    session: DatabaseSession,
+    current_user: User = Depends(get_current_active_user),
+):
+    return await EventService.get_event(
+        event_id=event_id, session=session, current_user=current_user
     )
 
 

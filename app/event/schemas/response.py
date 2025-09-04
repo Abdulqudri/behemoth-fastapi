@@ -1,24 +1,29 @@
-from datetime import date
-from typing import Optional
+from datetime import datetime
 
-from pydantic import BaseModel
-
+from pydantic import BaseModel, ConfigDict
 from app.common.schemas import ResponseSchema, PaginatedResponseSchema
-from app.event.models import Event, EventStatus
+from app.event.models import EventStatus
+from app.task.schemas.response import TaskOut
+from typing import List
 
 
 class EventOut(BaseModel):
     id: int
     title: str
-    description: Optional[str]
-    date: date
+    description: str | None = None
+    date: datetime
     location: str
     status: EventStatus
     owner_id: int
+    tasks: List[TaskOut] = []
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )  # 👈 tells Pydantic to accept ORM objects
 
     @classmethod
-    def from_orm_model(cls, obj: Event) -> "EventOut":
-        return cls.model_validate(obj)
+    def from_orm_model(cls, obj):
+        return cls.model_validate(obj)  # now this works
 
 
 class EventResponse(ResponseSchema):

@@ -15,10 +15,10 @@ class Event(DBBase):
     __tablename__ = "events"
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
-    description = Column(String) 
-    date = Column(DateTime) 
+    description = Column(String)
+    date = Column(DateTime)
     location = Column(String)
-    status = Column(Enum(EventStatus), default=EventStatus.UPCOMING) 
+    status = Column(Enum(EventStatus), default=EventStatus.UPCOMING)
     owner_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="events")
     tasks = relationship("Task", back_populates="event", cascade="all, delete-orphan")
